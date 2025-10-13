@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strauss America - Data Request Ticketing System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header h1 img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #d32f2f;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #b71c1c;
+        }
+
+        .btn-secondary {
+            background: #424242;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #212121;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .content-area {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #d32f2f;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .required {
+            color: #f56565;
+        }
+
+        /* Dashboard Styles */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #d32f2f;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filters select,
+        .filters input {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        /* Ticket Table */
+        .ticket-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .ticket-table th {
+            background: #f7fafc;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .ticket-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .ticket-table tr:hover {
+            background: #f7fafc;
+            cursor: pointer;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-new {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .status-in-progress {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+
+        .status-completed {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-closed {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .priority-high {
+            color: #f56565;
+            font-weight: bold;
+        }
+
+        .priority-medium {
+            color: #ed8936;
+            font-weight: bold;
+        }
+
+        .priority-low {
+            color: #48bb78;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            max-width: 700px;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .close-modal {
+            font-size: 28px;
+            cursor: pointer;
+            color: #a0aec0;
+            background: none;
+            border: none;
+        }
+
+        .close-modal:hover {
+            color: #4a5568;
+        }
+
+        .ticket-detail {
+            margin-bottom: 15px;
+        }
+
+        .ticket-detail label {
+            display: block;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .ticket-detail-value {
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 5px;
+            color: #2d3748;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .success-message {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <img src="https://i.imgur.com/zFiCPzD.jpeg" alt="Strauss Logo">
+                Strauss America - Data Request System
+            </h1>
+            <div class="header-buttons">
+                <button class="btn btn-primary" onclick="showSubmissionForm()">New Request</button>
+                <button class="btn btn-secondary" id="adminBtn" onclick="promptAdminPassword()">Admin Login</button>
+                <button class="btn btn-danger" id="exportBtn" onclick="exportData()" style="display: none;">Export Data</button>
+            </div>
+        </div>
+
+        <!-- Submission Form View -->
+        <div id="submissionView" class="content-area">
+            <h2 style="margin-bottom: 20px; color: #333;">Submit a Data Request</h2>
+            <div class="success-message" id="successMessage">
+                ✓ Your request has been submitted successfully! Ticket #<span id="ticketNumber"></span>
+            </div>
+            
+            <form id="ticketForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Your Name <span class="required">*</span></label>
+                        <input type="text" id="requesterName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Your Email <span class="required">*</span></label>
+                        <input type="email" id="requesterEmail" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Department <span class="required">*</span></label>
+                        <input type="text" id="department" required placeholder="e.g., Marketing, Finance, Operations">
+                    </div>
+                    <div class="form-group">
+                        <label>Request Type <span class="required">*</span></label>
+                        <select id="requestType" required>
+                            <option value="">-- Select Type --</option>
+                            <option value="Data Analysis">Data Analysis</option>
+                            <option value="Report Creation">Report Creation</option>
+                            <option value="Dashboard Creation">Dashboard Creation</option>
+                            <option value="Database/DW Schema">Database/DW Schema</option>
+                            <option value="Ad-hoc Run">Ad-hoc Run</option>
+                            <option value="File Manipulation">File Manipulation</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Urgency Level <span class="required">*</span></label>
+                        <select id="urgency" required>
+                            <option value="">-- Select Urgency --</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Expected Deadline (Optional)</label>
+                        <input type="date" id="deadline">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Request Description <span class="required">*</span></label>
+                    <textarea id="description" required placeholder="Please provide detailed information about your request..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px; font-size: 16px;">
+                    Submit Request
+                </button>
+            </form>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboardView" class="content-area hidden">
+            <h2 style="margin-bottom: 20px; color: #333;">Admin Dashboard</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Tickets</h3>
+                    <div class="number" id="totalTickets">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>New Tickets</h3>
+                    <div class="number" id="newTickets">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>In Progress</h3>
+                    <div class="number" id="inProgressTickets">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Completed</h3>
+                    <div class="number" id="completedTickets">0</div>
+                </div>
+            </div>
+
+            <div class="filters">
+                <select id="filterStatus" onchange="filterTickets()">
+                    <option value="">All Statuses</option>
+                    <option value="New">New</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Closed">Closed</option>
+                </select>
+                <select id="filterUrgency" onchange="filterTickets()">
+                    <option value="">All Urgencies</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+                <select id="filterType" onchange="filterTickets()">
+                    <option value="">All Types</option>
+                    <option value="Data Analysis">Data Analysis</option>
+                    <option value="Report Creation">Report Creation</option>
+                    <option value="Dashboard Creation">Dashboard Creation</option>
+                    <option value="Database/DW Schema">Database/DW Schema</option>
+                    <option value="Ad-hoc Run">Ad-hoc Run</option>
+                    <option value="File Manipulation">File Manipulation</option>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="text" id="searchBox" placeholder="Search tickets..." onkeyup="filterTickets()">
+            </div>
+
+            <table class="ticket-table" id="ticketTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Requester</th>
+                        <th>Department</th>
+                        <th>Type</th>
+                        <th>Urgency</th>
+                        <th>Status</th>
+                        <th>Deadline</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody id="ticketTableBody">
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #a0aec0;">
+                            No tickets yet. Create your first request!
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Ticket Detail Modal -->
+    <div id="ticketModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ticket Details - #<span id="modalTicketId"></span></h2>
+                <button class="close-modal" onclick="closeModal()">&times;</button>
+            </div>
+            
+            <div id="ticketDetails"></div>
+            
+            <div style="margin-top: 30px;">
+                <h3 style="margin-bottom: 15px;">Update Ticket</h3>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="modalStatus">
+                        <option value="New">New</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Estimated Hours</label>
+                        <input type="number" id="modalEstimatedHours" step="0.5" min="0" placeholder="e.g., 2.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Actual Hours</label>
+                        <input type="number" id="modalActualHours" step="0.5" min="0" placeholder="e.g., 3">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="modalNotes" placeholder="Add any notes or updates..."></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="updateTicket()" style="width: 100%; padding: 12px;">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Admin password - CHANGE THIS!
+        const ADMIN_PASSWORD = "strauss2025";
+        const ADMIN_EMAIL = "william.hinebrick@strauss.com";
+        let isAdminLoggedIn = false;
+        
+        // Initialize localStorage if not exists
+        if (!localStorage.getItem('tickets')) {
+            localStorage.setItem('tickets', JSON.stringify([]));
+        }
+
+        let currentTicketId = null;
+        let allTickets = [];
+
+        // Load tickets on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTickets();
+            updateStats();
+        });
+
+        // Check admin login
+        function promptAdminPassword() {
+            const password = prompt("Enter admin password:");
+            if (password === ADMIN_PASSWORD) {
+                isAdminLoggedIn = true;
+                document.getElementById('adminBtn').textContent = 'Admin Dashboard';
+                document.getElementById('adminBtn').onclick = showDashboard;
+                document.getElementById('exportBtn').style.display = 'inline-block';
+                showDashboard();
+            } else if (password !== null) {
+                alert("Incorrect password!");
+            }
+        }
+
+        // Form submission with email notification
+        document.getElementById('ticketForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const tickets = JSON.parse(localStorage.getItem('tickets'));
+            const newTicket = {
+                id: Date.now(),
+                requesterName: document.getElementById('requesterName').value,
+                requesterEmail: document.getElementById('requesterEmail').value,
+                department: document.getElementById('department').value,
+                requestType: document.getElementById('requestType').value,
+                urgency: document.getElementById('urgency').value,
+                deadline: document.getElementById('deadline').value,
+                description: document.getElementById('description').value,
+                status: 'New',
+                estimatedHours: '',
+                actualHours: '',
+                notes: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            
+            tickets.push(newTicket);
+            localStorage.setItem('tickets', JSON.stringify(tickets));
+            
+            // Send email notification
+            sendEmailNotification(newTicket);
+            
+            // Show success message
+            document.getElementById('ticketNumber').textContent = newTicket.id;
+            document.getElementById('successMessage').style.display = 'block';
+            
+            // Reset form
+            document.getElementById('ticketForm').reset();
+            
+            // Hide success message after 5 seconds
+            setTimeout(() => {
+                document.getElementById('successMessage').style.display = 'none';
+            }, 5000);
+            
+            // Update dashboard if visible
+            if (!document.getElementById('dashboardView').classList.contains('hidden')) {
+                loadTickets();
+                updateStats();
+            }
+        });
+
+        // Email notification function
+        function sendEmailNotification(ticket) {
+            const subject = encodeURIComponent(`New Data Request Ticket #${ticket.id} - ${ticket.urgency} Priority`);
+            const body = encodeURIComponent(`A new data request ticket has been submitted:
+
+Ticket #: ${ticket.id}
+Requester: ${ticket.requesterName} (${ticket.requesterEmail})
+Department: ${ticket.department}
+Request Type: ${ticket.requestType}
+Urgency: ${ticket.urgency}
+Deadline: ${ticket.deadline || 'No deadline specified'}
+
+Description:
+${ticket.description}
+
+Created: ${new Date(ticket.createdAt).toLocaleString()}
+
+Please log in to the admin dashboard to view and manage this ticket.`);
+            
+            // Open default email client with pre-filled information
+            window.location.href = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
+        }
+
+        function showSubmissionForm() {
+            document.getElementById('submissionView').classList.remove('hidden');
+            document.getElementById('dashboardView').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            if (!isAdminLoggedIn) {
+                promptAdminPassword();
+                return;
+            }
+            document.getElementById('submissionView').classList.add('hidden');
+            document.getElementById('dashboardView').classList.remove('hidden');
+            loadTickets();
+            updateStats();
+        }
+
+        function loadTickets() {
+            allTickets = JSON.parse(localStorage.getItem('tickets')) || [];
+            filterTickets();
+        }
+
+        function filterTickets() {
+            const statusFilter = document.getElementById('filterStatus').value;
+            const urgencyFilter = document.getElementById('filterUrgency').value;
+            const typeFilter = document.getElementById('filterType').value;
+            const searchText = document.getElementById('searchBox').value.toLowerCase();
+            
+            let filtered = allTickets.filter(ticket => {
+                const matchesStatus = !statusFilter || ticket.status === statusFilter;
+                const matchesUrgency = !urgencyFilter || ticket.urgency === urgencyFilter;
+                const matchesType = !typeFilter || ticket.requestType === typeFilter;
+                const matchesSearch = !searchText || 
+                    ticket.requesterName.toLowerCase().includes(searchText) ||
+                    ticket.department.toLowerCase().includes(searchText) ||
+                    ticket.description.toLowerCase().includes(searchText) ||
+                    ticket.id.toString().includes(searchText);
+                
+                return matchesStatus && matchesUrgency && matchesType && matchesSearch;
+            });
+            
+            displayTickets(filtered);
+        }
+
+        function displayTickets(tickets) {
+            const tbody = document.getElementById('ticketTableBody');
+            
+            if (tickets.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #a0aec0;">
+                            No tickets found matching your filters.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = tickets.map(ticket => `
+                <tr onclick="openTicketModal(${ticket.id})">
+                    <td><strong>#${ticket.id}</strong></td>
+                    <td>${ticket.requesterName}</td>
+                    <td>${ticket.department}</td>
+                    <td>${ticket.requestType}</td>
+                    <td class="priority-${ticket.urgency.toLowerCase()}">${ticket.urgency}</td>
+                    <td><span class="status-badge status-${ticket.status.toLowerCase().replace(' ', '-')}">${ticket.status}</span></td>
+                    <td>${ticket.deadline ? new Date(ticket.deadline).toLocaleDateString() : '-'}</td>
+                    <td>${new Date(ticket.createdAt).toLocaleDateString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateStats() {
+            const tickets = JSON.parse(localStorage.getItem('tickets')) || [];
+            
+            document.getElementById('totalTickets').textContent = tickets.length;
+            document.getElementById('newTickets').textContent = tickets.filter(t => t.status === 'New').length;
+            document.getElementById('inProgressTickets').textContent = tickets.filter(t => t.status === 'In Progress').length;
+            document.getElementById('completedTickets').textContent = tickets.filter(t => t.status === 'Completed').length;
+        }
+
+        function openTicketModal(ticketId) {
+            if (!isAdminLoggedIn) return;
+            
+            const tickets = JSON.parse(localStorage.getItem('tickets'));
+            const ticket = tickets.find(t => t.id === ticketId);
+            
+            if (!ticket) return;
+            
+            currentTicketId = ticketId;
+            document.getElementById('modalTicketId').textContent = ticket.id;
+            
+            document.getElementById('ticketDetails').innerHTML = `
+                <div class="ticket-detail">
+                    <label>Requester</label>
+                    <div class="ticket-detail-value">${ticket.requesterName} (${ticket.requesterEmail})</div>
+                </div>
+                <div class="ticket-detail">
+                    <label>Department</label>
+                    <div class="ticket-detail-value">${ticket.department}</div>
+                </div>
+                <div class="ticket-detail">
+                    <label>Request Type</label>
+                    <div class="ticket-detail-value">${ticket.requestType}</div>
+                </div>
+                <div class="ticket-detail">
+                    <label>Urgency</label>
+                    <div class="ticket-detail-value priority-${ticket.urgency.toLowerCase()}">${ticket.urgency}</div>
+                </div>
+                <div class="ticket-detail">
+                    <label>Deadline</label>
+                    <div class="ticket-detail-value">${ticket.deadline ? new Date(ticket.deadline).toLocaleDateString() : 'No deadline specified'}</div>
+                </div>
+                <div class="ticket-detail">
+                    <label>Description</label>
+                    <div class="ticket-detail-value">${ticket.description}</div>
+                </div>
+                <div class="ticket-detail">
+                    <label>Created</label>
+                    <div class="ticket-detail-value">${new Date(ticket.createdAt).toLocaleString()}</div>
+                </div>
+                <div class="ticket-detail">
+                    <label>Last Updated</label>
+                    <div class="ticket-detail-value">${new Date(ticket.updatedAt).toLocaleString()}</div>
+                </div>
+            `;
+            
+            document.getElementById('modalStatus').value = ticket.status;
+            document.getElementById('modalEstimatedHours').value = ticket.estimatedHours;
+            document.getElementById('modalActualHours').value = ticket.actualHours;
+            document.getElementById('modalNotes').value = ticket.notes;
+            
+            document.getElementById('ticketModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('ticketModal').style.display = 'none';
+        }
+
+        function updateTicket() {
+            const tickets = JSON.parse(localStorage.getItem('tickets'));
+            const ticketIndex = tickets.findIndex(t => t.id === currentTicketId);
+            
+            if (ticketIndex === -1) return;
+            
+            tickets[ticketIndex].status = document.getElementById('modalStatus').value;
+            tickets[ticketIndex].estimatedHours = document.getElementById('modalEstimatedHours').value;
+            tickets[ticketIndex].actualHours = document.getElementById('modalActualHours').value;
+            tickets[ticketIndex].notes = document.getElementById('modalNotes').value;
+            tickets[ticketIndex].updatedAt = new Date().toISOString();
+            
+            localStorage.setItem('tickets', JSON.stringify(tickets));
+            
+            closeModal();
+            loadTickets();
+            updateStats();
+            
+            alert('Ticket updated successfully!');
+        }
+
+        function exportData() {
+            if (!isAdminLoggedIn) {
+                alert('Please log in as admin first!');
+                return;
+            }
+            
+            const tickets = JSON.parse(localStorage.getItem('tickets')) || [];
+            
+            if (tickets.length === 0) {
+                alert('No tickets to export!');
+                return;
+            }
+            
+            // Create CSV
+            const headers = ['ID', 'Requester Name', 'Email', 'Department', 'Request Type', 'Urgency', 'Status', 'Deadline', 'Estimated Hours', 'Actual Hours', 'Description', 'Notes', 'Created At', 'Updated At'];
+            
+            const csvContent = [
+                headers.join(','),
+                ...tickets.map(ticket => [
+                    ticket.id,
+                    `"${ticket.requesterName}"`,
+                    ticket.requesterEmail,
+                    `"${ticket.department}"`,
+                    `"${ticket.requestType}"`,
+                    ticket.urgency,
+                    `"${ticket.status}"`,
+                    ticket.deadline || '',
+                    ticket.estimatedHours || '',
+                    ticket.actualHours || '',
+                    `"${ticket.description.replace(/"/g, '""')}"`,
+                    `"${ticket.notes.replace(/"/g, '""')}"`,
+                    new Date(ticket.createdAt).toLocaleString(),
+                    new Date(ticket.updatedAt).toLocaleString()
+                ].join(','))
+            ].join('\n');
+            
+            // Download
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `strauss_tickets_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('ticketModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

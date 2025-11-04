@@ -1,0 +1,8 @@
+{
+  "name": "strauss-ticketing-system",
+  "version": "1.0.0",
+  "description": "Strauss America Data Request Ticketing System",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}

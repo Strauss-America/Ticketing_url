@@ -1,3 +1,8 @@
+console.log('submit-ticket USING SENDGRID', {
+  commit: process.env.COMMIT_REF || 'no-commit-ref',
+  from: process.env.SENDGRID_FROM || 'unset'
+});
+
 const sgMail = require('@sendgrid/mail');
 
 exports.handler = async (event, context) => {

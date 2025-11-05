@@ -1,4 +1,6 @@
-const sgMail = require('@sendgrid/mail');
+// submit-ticket.js — Airtable create + Gmail SMTP (nodemailer), Node 18 global fetch
+
+const nodemailer = require('nodemailer');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -6,13 +8,13 @@ exports.handler = async (event) => {
   }
 
   try {
-    const data = JSON.parse(event.body);
+    const data = JSON.parse(event.body || "{}");
 
     // Generate ID/timestamps
-    const ticketId = Date.now().toString();
+    const ticketId = data.id || Date.now().toString();
     const nowIso = new Date().toISOString();
 
-    // ----- Airtable create -----
+    // ----- Airtable: create record -----
     const fields = {
       'Ticket ID': ticketId,
       'Requester Name': data.requesterName,
@@ -35,19 +37,14 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({ fields })
     });
+
     if (!atResp.ok) {
-      const err = await atResp.text();
-      console.error('Airtable error:', atResp.status, err);
+      const errBody = await atResp.text();
+      console.error('Airtable error (create):', atResp.status, errBody);
       return { statusCode: 500, body: JSON.stringify({ error: 'Failed to save ticket to Airtable' }) };
     }
 
-    // ----- SendGrid -----
-    const API = process.env.SENDGRID_API_KEY;
-    const FROM_EMAIL = process.env.SENDGRID_FROM || process.env.ADMIN_EMAIL || 'whinebrick@gmail.com';
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || FROM_EMAIL;
-    if (!API) return { statusCode: 500, body: JSON.stringify({ error: 'Missing SENDGRID_API_KEY' }) };
-    sgMail.setApiKey(API);
-
+    // ----- Email bodies -----
     const adminBody =
 `A new data request ticket has been submitted:
 
@@ -83,25 +80,41 @@ Thank you,
 Strauss America Analytics Team
 `;
 
-    await sgMail.send({
-      to: ADMIN_EMAIL,
-      from: { email: FROM_EMAIL, name: 'Strauss America Analytics Team' },
+    // ----- Gmail SMTP via nodemailer -----
+    const transport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,               // smtp.gmail.com
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: false,                              // STARTTLS on 587
+      auth: {
+        user: process.env.SMTP_USER,             // your Gmail address
+        pass: process.env.SMTP_PASSWORD          // Gmail App Password (not your normal password)
+      }
+    });
+
+    const FROM = process.env.EMAIL_FROM || 'Strauss America Analytics Team <whinebrick@gmail.com>';
+    const ADMIN = process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com';
+
+    // Admin notice
+    await transport.sendMail({
+      from: FROM,
+      to: ADMIN,
       replyTo: data.requesterEmail,
       subject: `New Data Request - Ticket #${ticketId}`,
       text: adminBody
     });
 
-    await sgMail.send({
+    // Requester confirmation
+    await transport.sendMail({
+      from: FROM,
       to: data.requesterEmail,
-      from: { email: FROM_EMAIL, name: 'Strauss America Analytics Team' },
-      replyTo: ADMIN_EMAIL,
+      replyTo: ADMIN,
       subject: `Your Data Request Ticket #${ticketId}`,
       text: requesterBody
     });
 
     return { statusCode: 200, body: JSON.stringify({ success: true, ticketId, message: 'Ticket submitted successfully' }) };
   } catch (error) {
-    console.error('submit-ticket error:', error.response?.body || error);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to submit ticket', message: error.message }) };
+    console.error('submit-ticket error:', error && (error.response?.body || error.message || error));
+    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to submit ticket', message: error.message || String(error) }) };
   }
 };

@@ -1,4 +1,6 @@
-const sgMail = require('@sendgrid/mail');
+// update-ticket.js — Airtable update + Gmail SMTP (nodemailer), Node 18 global fetch
+
+const nodemailer = require('nodemailer');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -6,13 +8,13 @@ exports.handler = async (event) => {
   }
 
   try {
-    const data = JSON.parse(event.body);
+    const data = JSON.parse(event.body || "{}");
     const { airtableId, status, estimatedHours, actualHours, notes, ticketId, ticketFields } = data;
     if (!airtableId) return { statusCode: 400, body: JSON.stringify({ error: 'Airtable record ID is required' }) };
 
     const nowIso = new Date().toISOString();
 
-    // ----- Airtable update -----
+    // ----- Airtable: update record -----
     const updateFields = { 'Status': status, 'Updated At': nowIso };
     if (estimatedHours !== undefined && estimatedHours !== null) updateFields['Estimated Hours'] = estimatedHours;
     if (actualHours !== undefined && actualHours !== null) updateFields['Actual Hours'] = actualHours;
@@ -26,19 +28,14 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({ fields: updateFields })
     });
+
     if (!atResp.ok) {
-      const err = await atResp.text();
-      console.error('Airtable error:', atResp.status, err);
+      const errBody = await atResp.text();
+      console.error('Airtable error (update):', atResp.status, errBody);
       return { statusCode: 500, body: JSON.stringify({ error: 'Failed to update ticket in Airtable' }) };
     }
 
-    // ----- SendGrid -----
-    const API = process.env.SENDGRID_API_KEY;
-    const FROM_EMAIL = process.env.SENDGRID_FROM || process.env.ADMIN_EMAIL || 'whinebrick@gmail.com';
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || FROM_EMAIL;
-    if (!API) return { statusCode: 500, body: JSON.stringify({ error: 'Missing SENDGRID_API_KEY' }) };
-    sgMail.setApiKey(API);
-
+    // ----- Email body -----
     const body =
 `Hello ${ticketFields['Requester Name']},
 
@@ -57,17 +54,31 @@ If you have any questions, please reply to this email.
 Thank you,
 Strauss America Analytics Team`;
 
-    await sgMail.send({
+    // ----- Gmail SMTP via nodemailer -----
+    const transport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD
+      }
+    });
+
+    const FROM = process.env.EMAIL_FROM || 'Strauss America Analytics Team <whinebrick@gmail.com>';
+    const ADMIN = process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com';
+
+    await transport.sendMail({
+      from: FROM,
       to: ticketFields['Requester Email'],
-      from: { email: FROM_EMAIL, name: 'Strauss America Analytics Team' },
-      replyTo: ADMIN_EMAIL,
+      replyTo: ADMIN,
       subject: `Ticket Update - #${ticketId} - ${status}`,
       text: body
     });
 
     return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Ticket updated successfully' }) };
   } catch (error) {
-    console.error('update-ticket error:', error.response?.body || error);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to send email', message: error.message }) };
+    console.error('update-ticket error:', error && (error.response?.body || error.message || error));
+    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to send email', message: error.message || String(error) }) };
   }
 };

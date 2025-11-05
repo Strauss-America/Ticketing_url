@@ -1,27 +1,35 @@
-// get-tickets.js — Airtable read, Node 18 global fetch
+const fetch = require('node-fetch');
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
+  // Only allow GET requests
   if (event.httpMethod !== 'GET') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
   }
 
   try {
-    const url = new URL(event.rawUrl);
-    const max = Math.min(Number(url.searchParams.get('limit') || 50), 200);
-
-    const resp = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Tickets?maxRecords=${max}&sort[0][field]=Created%20At&sort[0][direction]=desc`,
-      { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_API_KEY}` } }
+    // Fetch all tickets from Airtable
+    const airtableResponse = await fetch(
+      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Tickets?sort%5B0%5D%5Bfield%5D=Created%20At&sort%5B0%5D%5Bdirection%5D=desc`,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.AIRTABLE_API_KEY}`
+        }
+      }
     );
-
-    if (!resp.ok) {
-      const errBody = await resp.text();
-      console.error('Airtable error (get):', resp.status, errBody);
-      return { statusCode: 500, body: JSON.stringify({ error: 'Failed to fetch tickets' }) };
+    
+    if (!airtableResponse.ok) {
+      const errorData = await airtableResponse.json();
+      console.error('Airtable error:', errorData);
+      throw new Error('Failed to fetch tickets from Airtable');
     }
-
-    const json = await resp.json();
-    const tickets = json.records.map(record => ({
+    
+    const airtableData = await airtableResponse.json();
+    
+    // Transform Airtable records to our format
+    const tickets = airtableData.records.map(record => ({
       airtableId: record.id,
       ticketId: record.fields['Ticket ID'],
       requesterName: record.fields['Requester Name'],
@@ -38,10 +46,23 @@ exports.handler = async (event) => {
       createdAt: record.fields['Created At'],
       updatedAt: record.fields['Updated At']
     }));
-
-    return { statusCode: 200, body: JSON.stringify({ success: true, tickets }) };
+    
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        success: true,
+        tickets: tickets
+      })
+    };
+    
   } catch (error) {
-    console.error('get-tickets error:', error.message || error);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to fetch tickets', message: error.message || String(error) }) };
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: 'Failed to fetch tickets',
+        message: error.message
+      })
+    };
   }
 };

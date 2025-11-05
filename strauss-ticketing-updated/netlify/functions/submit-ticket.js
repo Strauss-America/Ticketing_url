@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const nodemailer = require('nodemailer');
 
 exports.handler = async (event, context) => {
   // Only allow POST requests
@@ -58,8 +59,13 @@ exports.handler = async (event, context) => {
     
     const airtableData = await airtableResponse.json();
     
-    // Send email notification
-    await sendEmailNotification(data, ticketId);
+    // Send email notifications
+    try {
+      await sendEmailNotifications(data, ticketId);
+    } catch (emailError) {
+      console.error('Email error (ticket still created):', emailError);
+      // Don't fail the whole request if email fails
+    }
     
     return {
       statusCode: 200,
@@ -82,12 +88,22 @@ exports.handler = async (event, context) => {
   }
 };
 
-async function sendEmailNotification(data, ticketId) {
-  // This uses Netlify's email integration
-  // You can customize this or use a different email service
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@strauss.com';
+async function sendEmailNotifications(data, ticketId) {
+  // Create transporter using your SMTP settings
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT),
+    secure: false, // true for 465, false for 587
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD
+    }
+  });
+
+  const adminEmail = process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com';
   
-  const emailBody = `
+  // Email to admin about new ticket
+  const adminEmailBody = `
 A new data request ticket has been submitted:
 
 Ticket #: ${ticketId}
@@ -102,24 +118,44 @@ ${data.description}
 
 Created: ${new Date().toLocaleString()}
 
-Please log in to the admin dashboard to view and manage this ticket.
+Please log in to the admin dashboard to view and manage this ticket:
+https://strauss-america-analytics-tickets.netlify.app
   `;
-  
-  // For production, integrate with SendGrid, AWS SES, or another email service
-  // For now, this is a placeholder - you'll need to set up actual email sending
-  console.log('Email notification would be sent to:', adminEmail);
-  console.log('Email body:', emailBody);
-  
-  // Example with SendGrid (uncomment and configure if you want to use it):
-  /*
-  const sgMail = require('@sendgrid/mail');
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  
-  await sgMail.send({
+
+  // Email to requester confirming ticket submission
+  const requesterEmailBody = `
+Hi ${data.requesterName},
+
+Your data request ticket has been submitted successfully!
+
+Ticket #: ${ticketId}
+Request Type: ${data.requestType}
+Urgency: ${data.urgency}
+Deadline: ${data.deadline || 'No deadline specified'}
+
+Description:
+${data.description}
+
+We'll review your request and get back to you soon. You can reference ticket #${ticketId} if you need to follow up.
+
+Thank you,
+Strauss America Analytics Team
+  `;
+
+  // Send email to admin
+  await transporter.sendMail({
+    from: '"Strauss Analytics Ticketing" <noreply@strauss.com>',
+    replyTo: data.requesterEmail,
     to: adminEmail,
-    from: 'noreply@strauss.com',
     subject: `New Data Request - Ticket #${ticketId}`,
-    text: emailBody
+    text: adminEmailBody
   });
-  */
+
+  // Send confirmation email to requester
+  await transporter.sendMail({
+    from: '"Strauss America Analytics Team" <noreply@strauss.com>',
+    to: data.requesterEmail,
+    subject: `Your Data Request Ticket #${ticketId}`,
+    text: requesterEmailBody
+  });
 }

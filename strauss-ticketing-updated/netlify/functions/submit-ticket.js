@@ -1,4 +1,3 @@
-// Adding email notifications
 const fetch = require('node-fetch');
 const nodemailer = require('nodemailer');
 
@@ -102,6 +101,7 @@ async function sendEmailNotifications(data, ticketId) {
   });
 
   const adminEmail = process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com';
+  const fromEmail = process.env.SMTP_USER;
   
   // Email to admin about new ticket
   const adminEmailBody = `
@@ -145,7 +145,7 @@ Strauss America Analytics Team
 
   // Send email to admin
   await transporter.sendMail({
-    from: '"Strauss Analytics Ticketing",
+    from: fromEmail,
     replyTo: data.requesterEmail,
     to: adminEmail,
     subject: `New Data Request - Ticket #${ticketId}`,
@@ -154,7 +154,7 @@ Strauss America Analytics Team
 
   // Send confirmation email to requester
   await transporter.sendMail({
-    from: '"Strauss America Analytics Team",
+    from: fromEmail,
     to: data.requesterEmail,
     subject: `Your Data Request Ticket #${ticketId}`,
     text: requesterEmailBody

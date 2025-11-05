@@ -1,3 +1,5 @@
+console.log('submit-ticket USING SENDGRID');
+
 console.log('submit-ticket USING SENDGRID', {
   commit: process.env.COMMIT_REF || 'no-commit-ref',
   from: process.env.SENDGRID_FROM || 'unset'
@@ -51,7 +53,7 @@ https://strauss-america-analytics-tickets.netlify.app`;
         name: fromName
       },
       replyTo: requesterEmail,
-      subject: `New Data Request - Ticket #${ticket.id}`,
+      subject: `[BY-NETLIFY] New Data Request - Ticket #${ticket.id}`,
       text: adminEmailBody
     });
 
@@ -84,7 +86,7 @@ Strauss America Analytics Team`;
         email: fromEmail,
         name: fromName
       },
-      subject: `Ticket Confirmation - #${ticket.id}`,
+      subject: `[BY-NETLIFY] Ticket Confirmation - #${ticket.id}`,
       text: requesterEmailBody
     });
 

@@ -1,6 +1,4 @@
-const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
-const { OAuth2 } = google.auth;
+const sgMail = require('@sendgrid/mail');
 
 exports.handler = async (event, context) => {
   // Only allow POST requests
@@ -15,34 +13,12 @@ exports.handler = async (event, context) => {
     // Parse the incoming ticket data
     const ticket = JSON.parse(event.body);
     
-    // Get OAuth credentials from environment variables
-    const oauth2Client = new OAuth2(
-      process.env.GMAIL_CLIENT_ID,
-      process.env.GMAIL_CLIENT_SECRET,
-      'https://developers.google.com/oauthplayground'
-    );
-
-    oauth2Client.setCredentials({
-      refresh_token: process.env.GMAIL_REFRESH_TOKEN
-    });
-
-    const accessToken = await oauth2Client.getAccessToken();
-
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: process.env.GMAIL_USER,
-        clientId: process.env.GMAIL_CLIENT_ID,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-        accessToken: accessToken.token
-      }
-    });
+    // Set SendGrid API key
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
     const adminEmail = 'william.hinebrick@strauss.com';
     const fromEmail = 'william.hinebrick@strauss.com';
+    const fromName = 'Strauss Analytics Ticketing';
     const requesterEmail = ticket.requesterEmail;
 
     // Email to admin
@@ -63,9 +39,12 @@ Created: ${ticket.createdAt}
 Please log in to the admin dashboard to view and manage this ticket:
 https://strauss-america-analytics-tickets.netlify.app`;
 
-    await transporter.sendMail({
-      from: `"Strauss Analytics Ticketing" <${fromEmail}>`,
+    await sgMail.send({
       to: adminEmail,
+      from: {
+        email: fromEmail,
+        name: fromName
+      },
       replyTo: requesterEmail,
       subject: `New Data Request - Ticket #${ticket.id}`,
       text: adminEmailBody
@@ -94,9 +73,12 @@ If you have any questions, please reply to this email.
 Thank you,
 Strauss America Analytics Team`;
 
-    await transporter.sendMail({
-      from: `"Strauss Analytics Ticketing" <${fromEmail}>`,
+    await sgMail.send({
       to: requesterEmail,
+      from: {
+        email: fromEmail,
+        name: fromName
+      },
       subject: `Ticket Confirmation - #${ticket.id}`,
       text: requesterEmailBody
     });

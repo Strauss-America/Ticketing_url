@@ -1,5 +1,6 @@
-const fetch = require('node-fetch');
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
+const { OAuth2 } = google.auth;
 
 exports.handler = async (event, context) => {
   // Only allow POST requests
@@ -11,152 +12,111 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const data = JSON.parse(event.body);
+    // Parse the incoming ticket data
+    const ticket = JSON.parse(event.body);
     
-    // Generate ticket ID
-    const ticketId = Date.now().toString();
-    const now = new Date().toISOString();
-    
-    // Prepare Airtable record
-    const airtableRecord = {
-      fields: {
-        'Ticket ID': ticketId,
-        'Requester Name': data.requesterName,
-        'Requester Email': data.requesterEmail,
-        'Department': data.department,
-        'Request Type': data.requestType,
-        'Urgency': data.urgency,
-        'Status': 'New',
-        'Description': data.description,
-        'Created At': now,
-        'Updated At': now
-      }
-    };
-    
-    // Add deadline if provided
-    if (data.deadline) {
-      airtableRecord.fields['Deadline'] = data.deadline;
-    }
-    
-    // Send to Airtable
-    const airtableResponse = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Tickets`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.AIRTABLE_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(airtableRecord)
-      }
+    // Get OAuth credentials from environment variables
+    const oauth2Client = new OAuth2(
+      process.env.GMAIL_CLIENT_ID,
+      process.env.GMAIL_CLIENT_SECRET,
+      'https://developers.google.com/oauthplayground'
     );
-    
-    if (!airtableResponse.ok) {
-      const errorData = await airtableResponse.json();
-      console.error('Airtable error:', errorData);
-      throw new Error('Failed to save ticket to Airtable');
-    }
-    
-    const airtableData = await airtableResponse.json();
-    
-    // Send email notifications
-    try {
-      await sendEmailNotifications(data, ticketId);
-    } catch (emailError) {
-      console.error('Email error (ticket still created):', emailError);
-      // Don't fail the whole request if email fails
-    }
-    
+
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN
+    });
+
+    const accessToken = await oauth2Client.getAccessToken();
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: process.env.GMAIL_USER,
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+        accessToken: accessToken.token
+      }
+    });
+
+    const adminEmail = 'william.hinebrick@strauss.com';
+    const fromEmail = 'william.hinebrick@strauss.com';
+    const requesterEmail = ticket.requesterEmail;
+
+    // Email to admin
+    const adminEmailBody = `A new data request ticket has been submitted:
+
+Ticket #: ${ticket.id}
+Requester: ${ticket.requesterName} (${ticket.requesterEmail})
+Department: ${ticket.department}
+Request Type: ${ticket.requestType}
+Urgency: ${ticket.urgency}
+Deadline: ${ticket.deadline}
+
+Description:
+${ticket.description}
+
+Created: ${ticket.createdAt}
+
+Please log in to the admin dashboard to view and manage this ticket:
+https://strauss-america-analytics-tickets.netlify.app`;
+
+    await transporter.sendMail({
+      from: `"Strauss Analytics Ticketing" <${fromEmail}>`,
+      to: adminEmail,
+      replyTo: requesterEmail,
+      subject: `New Data Request - Ticket #${ticket.id}`,
+      text: adminEmailBody
+    });
+
+    // Confirmation email to requester
+    const requesterEmailBody = `Dear ${ticket.requesterName},
+
+Thank you for submitting your data request. Your ticket has been received and assigned the following number:
+
+Ticket #: ${ticket.id}
+
+Request Summary:
+- Department: ${ticket.department}
+- Request Type: ${ticket.requestType}
+- Urgency: ${ticket.urgency}
+- Deadline: ${ticket.deadline}
+
+Description:
+${ticket.description}
+
+Our analytics team will review your request and get back to you shortly. You will receive email updates as your ticket status changes.
+
+If you have any questions, please reply to this email.
+
+Thank you,
+Strauss America Analytics Team`;
+
+    await transporter.sendMail({
+      from: `"Strauss Analytics Ticketing" <${fromEmail}>`,
+      to: requesterEmail,
+      subject: `Ticket Confirmation - #${ticket.id}`,
+      text: requesterEmailBody
+    });
+
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        ticketId: ticketId,
-        message: 'Ticket submitted successfully'
+      body: JSON.stringify({ 
+        message: 'Ticket submitted successfully',
+        ticketId: ticket.id 
       })
     };
-    
+
   } catch (error) {
     console.error('Error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({
+      body: JSON.stringify({ 
         error: 'Failed to submit ticket',
-        message: error.message
+        details: error.message 
       })
     };
   }
 };
-
-async function sendEmailNotifications(data, ticketId) {
-  // Create transporter using your SMTP settings
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT),
-    secure: false, // true for 465, false for 587
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD
-    }
-  });
-
-  const adminEmail = process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com';
-  const fromEmail = process.env.SMTP_USER;
-  
-  // Email to admin about new ticket
-  const adminEmailBody = `
-A new data request ticket has been submitted:
-
-Ticket #: ${ticketId}
-Requester: ${data.requesterName} (${data.requesterEmail})
-Department: ${data.department}
-Request Type: ${data.requestType}
-Urgency: ${data.urgency}
-Deadline: ${data.deadline || 'No deadline specified'}
-
-Description:
-${data.description}
-
-Created: ${new Date().toLocaleString()}
-
-Please log in to the admin dashboard to view and manage this ticket:
-https://strauss-america-analytics-tickets.netlify.app
-  `;
-
-  // Email to requester confirming ticket submission
-  const requesterEmailBody = `
-Hi ${data.requesterName},
-
-Your data request ticket has been submitted successfully!
-
-Ticket #: ${ticketId}
-Request Type: ${data.requestType}
-Urgency: ${data.urgency}
-Deadline: ${data.deadline || 'No deadline specified'}
-
-Description:
-${data.description}
-
-We'll review your request and get back to you soon. You can reference ticket #${ticketId} if you need to follow up.
-
-Thank you,
-Strauss America Analytics Team
-  `;
-
-  // Send email to admin
-  await transporter.sendMail({
-    from: fromEmail,
-    replyTo: data.requesterEmail,
-    to: adminEmail,
-    subject: `New Data Request - Ticket #${ticketId}`,
-    text: adminEmailBody
-  });
-
-  // Send confirmation email to requester
-  await transporter.sendMail({
-    from: fromEmail,
-    to: data.requesterEmail,
-    subject: `Your Data Request Ticket #${ticketId}`,
-    text: requesterEmailBody
-  });
-}

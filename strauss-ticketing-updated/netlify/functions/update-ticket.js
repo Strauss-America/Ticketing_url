@@ -1,8 +1,8 @@
-const fetch = require('node-fetch');
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
+const { OAuth2 } = google.auth;
 
 exports.handler = async (event, context) => {
-  // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -11,165 +11,75 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const data = JSON.parse(event.body);
-    const { airtableId, status, estimatedHours, actualHours, notes } = data;
+    const { ticketId, newStatus, ticketFields } = JSON.parse(event.body);
     
-    if (!airtableId) {
-      throw new Error('Airtable record ID is required');
-    }
-    
-    // First, get the current ticket details so we can email the requester
-    const getResponse = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Tickets/${airtableId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.AIRTABLE_API_KEY}`
-        }
-      }
+    const oauth2Client = new OAuth2(
+      process.env.GMAIL_CLIENT_ID,
+      process.env.GMAIL_CLIENT_SECRET,
+      'https://developers.google.com/oauthplayground'
     );
-    
-    if (!getResponse.ok) {
-      throw new Error('Failed to fetch ticket details');
-    }
-    
-    const ticketData = await getResponse.json();
-    const ticketFields = ticketData.fields;
-    
-    const now = new Date().toISOString();
-    
-    // Prepare update fields
-    const updateFields = {
-      'Status': status,
-      'Updated At': now
-    };
-    
-    // Add optional fields if provided
-    if (estimatedHours !== null && estimatedHours !== undefined) {
-      updateFields['Estimated Hours'] = estimatedHours;
-    }
-    
-    if (actualHours !== null && actualHours !== undefined) {
-      updateFields['Actual Hours'] = actualHours;
-    }
-    
-    if (notes !== null && notes !== undefined) {
-      updateFields['Notes'] = notes;
-    }
-    
-    // Update in Airtable
-    const airtableResponse = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Tickets/${airtableId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${process.env.AIRTABLE_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fields: updateFields
-        })
+
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN
+    });
+
+    const accessToken = await oauth2Client.getAccessToken();
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: process.env.GMAIL_USER,
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+        accessToken: accessToken.token
       }
-    );
+    });
+
+    const adminEmail = 'william.hinebrick@strauss.com';
+    const fromEmail = 'william.hinebrick@strauss.com';
+    const requesterEmail = ticketFields['Requester Email'];
+
+    // Prepare email body
+    let emailBody = `Hello ${ticketFields['Requester Name']},\n\n`;
+    emailBody += `Your ticket #${ticketId} status has been updated to: ${newStatus}\n\n`;
+    emailBody += `Ticket Details:\n`;
+    emailBody += `Department: ${ticketFields['Department']}\n`;
+    emailBody += `Request Type: ${ticketFields['Request Type']}\n`;
+    emailBody += `Urgency: ${ticketFields['Urgency']}\n`;
+    emailBody += `Deadline: ${ticketFields['Deadline']}\n\n`;
+    emailBody += `Description:\n${ticketFields['Description']}\n\n`;
+  
+    emailBody += `If you have any questions, please reply to this email.\n\n`;
+    emailBody += `Thank you,\nStrauss America Analytics Team`;
+
+    // Send email to requester
+    await transporter.sendMail({
+      from: `"Strauss Analytics Ticketing" <${fromEmail}>`,
+      replyTo: adminEmail,
+      to: requesterEmail,
+      subject: `Ticket Update - #${ticketId} - ${newStatus}`,
+      text: emailBody
+    });
     
-    if (!airtableResponse.ok) {
-      const errorData = await airtableResponse.json();
-      console.error('Airtable error:', errorData);
-      throw new Error('Failed to update ticket in Airtable');
-    }
-    
-    const airtableData = await airtableResponse.json();
-    
-    // Send email notification about the update
-    try {
-      await sendUpdateEmail(ticketFields, status, estimatedHours, actualHours, notes);
-    } catch (emailError) {
-      console.error('Email error (ticket still updated):', emailError);
-      // Don't fail the whole request if email fails
-    }
-    
+    console.log(`Update email sent to ${requesterEmail} for ticket ${ticketId}`);
+
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        success: true,
-        message: 'Ticket updated successfully'
+      body: JSON.stringify({ 
+        message: 'Email sent successfully' 
       })
     };
-    
+
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error sending email:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        error: 'Failed to update ticket',
-        message: error.message
+      body: JSON.stringify({ 
+        error: 'Failed to send email',
+        details: error.message 
       })
     };
   }
 };
-
-async function sendUpdateEmail(ticketFields, newStatus, estimatedHours, actualHours, notes) {
-  // Create transporter using your SMTP settings
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD
-    }
-  });
-
-  const ticketId = ticketFields['Ticket ID'];
-  const requesterName = ticketFields['Requester Name'];
-  const requesterEmail = ticketFields['Requester Email'];
-  const oldStatus = ticketFields['Status'];
-  const adminEmail = process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com';
-  const fromEmail = process.env.SMTP_USER;
-  
-  // Determine what changed
-  const changes = [];
-  if (newStatus !== oldStatus) {
-    changes.push(`Status: ${oldStatus} → ${newStatus}`);
-  }
-  if (estimatedHours !== null && estimatedHours !== undefined) {
-    changes.push(`Estimated Hours: ${estimatedHours}`);
-  }
-  if (actualHours !== null && actualHours !== undefined) {
-    changes.push(`Actual Hours: ${actualHours}`);
-  }
-  
-  // Build the email body
-  let emailBody = `Hi ${requesterName},
-
-Your data request ticket has been updated.
-
-Ticket #: ${ticketId}
-New Status: ${newStatus}
-Request Type: ${ticketFields['Request Type']}
-
-`;
-
-  if (changes.length > 0) {
-    emailBody += `Changes:\n${changes.map(c => `  • ${c}`).join('\n')}\n\n`;
-  }
-
-  if (notes) {
-    emailBody += `Admin Notes:\n${notes}\n\n`;
-  }
-
-  emailBody += `Original Request:\n${ticketFields['Description']}\n\n`;
-  
-  emailBody += `If you have any questions, please reply to this email.\n\n`;
-  emailBody += `Thank you,\nStrauss America Analytics Team`;
-
-  // Send email to requester
-  await transporter.sendMail({
-    from: fromEmail,
-    replyTo: adminEmail,
-    to: requesterEmail,
-    subject: `Ticket Update - #${ticketId} - ${newStatus}`,
-    text: emailBody
-  });
-  
-  console.log(`Update email sent to ${requesterEmail} for ticket ${ticketId}`);
-}

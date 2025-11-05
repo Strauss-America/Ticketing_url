@@ -1,34 +1,41 @@
-console.log('submit-ticket USING SENDGRID');
-
+// Marker so we can see this in Netlify function logs
 console.log('submit-ticket USING SENDGRID', {
   commit: process.env.COMMIT_REF || 'no-commit-ref',
   from: process.env.SENDGRID_FROM || 'unset'
 });
 
 const sgMail = require('@sendgrid/mail');
+const fetch = require('node-fetch'); // only needed if you write to Airtable here
 
-exports.handler = async (event, context) => {
-  // Only allow POST requests
+exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
+    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
   try {
-    // Parse the incoming ticket data
     const ticket = JSON.parse(event.body);
-    
-    // Set SendGrid API key
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-    const adminEmail = 'william.hinebrick@strauss.com';
-    const fromEmail = 'william.hinebrick@strauss.com';
-    const fromName = 'Strauss Analytics Ticketing';
-    const requesterEmail = ticket.requesterEmail;
+    // ---- ENV REQUIRED ----
+    const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+    const SENDGRID_FROM    = process.env.SENDGRID_FROM || 'william.hinebrick@strauss.com';
+    const ADMIN_EMAIL      = process.env.ADMIN_EMAIL   || 'william.hinebrick@strauss.com';
 
-    // Email to admin
+    if (!SENDGRID_API_KEY) throw new Error('Missing SENDGRID_API_KEY');
+    sgMail.setApiKey(SENDGRID_API_KEY);
+
+    // (Optional) normalize single-selects to Airtable labels
+    const TYPE_MAP = { 'Report': 'Report Creation' };
+    ticket.requestType = TYPE_MAP[ticket.requestType] || ticket.requestType;
+
+    // ---- if you also save to Airtable here, do it and throw on error with body for debugging ----
+    // (Example pattern)
+    // const r = await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Tickets`, {
+    //   method: 'POST',
+    //   headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_API_KEY}`, 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ fields: { /* ... */ } })
+    // });
+    // if (!r.ok) { const t = await r.text(); console.error('Airtable error:', r.status, t); throw new Error('Failed to save ticket to Airtable'); }
+
     const adminEmailBody = `A new data request ticket has been submitted:
 
 Ticket #: ${ticket.id}
@@ -42,70 +49,59 @@ Description:
 ${ticket.description}
 
 Created: ${ticket.createdAt}
+`;
 
-Please log in to the admin dashboard to view and manage this ticket:
-https://strauss-america-analytics-tickets.netlify.app`;
+    const requesterEmailBody = `Hi ${ticket.requesterName},
 
-    await sgMail.send({
-      to: adminEmail,
-      from: {
-        email: fromEmail,
-        name: fromName
-      },
-      replyTo: requesterEmail,
-      subject: `[BY-NETLIFY] New Data Request - Ticket #${ticket.id}`,
-      text: adminEmailBody
-    });
-
-    // Confirmation email to requester
-    const requesterEmailBody = `Dear ${ticket.requesterName},
-
-Thank you for submitting your data request. Your ticket has been received and assigned the following number:
+Your data request ticket has been submitted successfully!
 
 Ticket #: ${ticket.id}
-
-Request Summary:
-- Department: ${ticket.department}
-- Request Type: ${ticket.requestType}
-- Urgency: ${ticket.urgency}
-- Deadline: ${ticket.deadline}
+Request Type: ${ticket.requestType}
+Urgency: ${ticket.urgency}
+Deadline: ${ticket.deadline}
 
 Description:
 ${ticket.description}
 
-Our analytics team will review your request and get back to you shortly. You will receive email updates as your ticket status changes.
-
-If you have any questions, please reply to this email.
-
 Thank you,
-Strauss America Analytics Team`;
+Strauss America Analytics Team
+`;
 
-    await sgMail.send({
-      to: requesterEmail,
-      from: {
-        email: fromEmail,
-        name: fromName
-      },
+    // Send admin
+    const adminMsg = {
+      to: ADMIN_EMAIL,
+      from: { email: SENDGRID_FROM, name: 'Strauss Analytics Ticketing' },
+      replyTo: ticket.requesterEmail,
+      subject: `[BY-NETLIFY] New Data Request - Ticket #${ticket.id}`,
+      text: adminEmailBody
+    };
+    try {
+      const [resp] = await sgMail.send(adminMsg);
+      console.log('SG admin status', resp && resp.statusCode);
+    } catch (e) {
+      console.error('SG admin send error:', e.response?.body || e);
+      throw e;
+    }
+
+    // Send requester
+    const requesterMsg = {
+      to: ticket.requesterEmail,
+      from: { email: SENDGRID_FROM, name: 'Strauss Analytics Ticketing' },
       subject: `[BY-NETLIFY] Ticket Confirmation - #${ticket.id}`,
       text: requesterEmailBody
-    });
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ 
-        message: 'Ticket submitted successfully',
-        ticketId: ticket.id 
-      })
     };
+    try {
+      const [resp2] = await sgMail.send(requesterMsg);
+      console.log('SG requester status', resp2 && resp2.statusCode);
+    } catch (e) {
+      console.error('SG requester send error:', e.response?.body || e);
+      throw e;
+    }
+
+    return { statusCode: 200, body: JSON.stringify({ success: true, ticketId: ticket.id, message: 'Ticket submitted successfully' }) };
 
   } catch (error) {
-    console.error('Error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ 
-        error: 'Failed to submit ticket',
-        details: error.message 
-      })
-    };
+    console.error('Handler error:', error);
+    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to submit ticket', details: error.message }) };
   }
 };

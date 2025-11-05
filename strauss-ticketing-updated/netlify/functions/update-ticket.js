@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const sgMail = require('@sendgrid/mail');
 
 exports.handler = async (event) => {

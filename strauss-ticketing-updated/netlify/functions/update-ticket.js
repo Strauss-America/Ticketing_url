@@ -162,7 +162,7 @@ Request Type: ${ticketFields['Request Type']}
 
   // Send email to requester
   await transporter.sendMail({
-    from: '"Strauss America Analytics Team" <noreply@strauss.com>',
+    from: '"Strauss America Analytics Team",
     replyTo: process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com',
     to: requesterEmail,
     subject: `Ticket Update - #${ticketId} - ${newStatus}`,

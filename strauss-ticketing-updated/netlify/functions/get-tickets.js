@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 exports.handler = async (event, context) => {
   // Only allow GET requests
   if (event.httpMethod !== 'GET') {

@@ -1,4 +1,5 @@
 // updating email via sendgrid
+// new updates
 const sgMail = require('@sendgrid/mail');
 
 exports.handler = async (event, context) => {

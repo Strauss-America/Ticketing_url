@@ -2,6 +2,11 @@
   "name": "strauss-ticketing-functions",
   "version": "1.0.0",
   "description": "Netlify functions for Strauss ticketing system",
+  "scripts": {
+    "build": "echo 'No build step required'",
+    "dev": "netlify dev",
+    "preview": "netlify dev"
+  },
   "dependencies": {
     "@sendgrid/mail": "^8.1.0"
   }

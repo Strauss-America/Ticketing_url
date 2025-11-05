@@ -145,7 +145,7 @@ Strauss America Analytics Team
 
   // Send email to admin
   await transporter.sendMail({
-    from: '"Strauss Analytics Ticketing" <noreply@strauss.com>',
+    from: '"Strauss Analytics Ticketing",
     replyTo: data.requesterEmail,
     to: adminEmail,
     subject: `New Data Request - Ticket #${ticketId}`,
@@ -154,7 +154,7 @@ Strauss America Analytics Team
 
   // Send confirmation email to requester
   await transporter.sendMail({
-    from: '"Strauss America Analytics Team" <noreply@strauss.com>',
+    from: '"Strauss America Analytics Team",
     to: data.requesterEmail,
     subject: `Your Data Request Ticket #${ticketId}`,
     text: requesterEmailBody

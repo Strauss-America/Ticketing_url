@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const sgMail = require('@sendgrid/mail');
 
 exports.handler = async (event) => {
@@ -9,11 +8,11 @@ exports.handler = async (event) => {
   try {
     const data = JSON.parse(event.body);
     const { airtableId, status, estimatedHours, actualHours, notes, ticketId, ticketFields } = data;
-    if (!airtableId) throw new Error('Airtable record ID is required');
+    if (!airtableId) return { statusCode: 400, body: JSON.stringify({ error: 'Airtable record ID is required' }) };
 
     const nowIso = new Date().toISOString();
 
-    // ----- Airtable: build update -----
+    // ----- Airtable update -----
     const updateFields = { 'Status': status, 'Updated At': nowIso };
     if (estimatedHours !== undefined && estimatedHours !== null) updateFields['Estimated Hours'] = estimatedHours;
     if (actualHours !== undefined && actualHours !== null) updateFields['Actual Hours'] = actualHours;
@@ -27,19 +26,18 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({ fields: updateFields })
     });
-
     if (!atResp.ok) {
       const err = await atResp.text();
       console.error('Airtable error:', atResp.status, err);
-      throw new Error('Failed to update ticket in Airtable');
+      return { statusCode: 500, body: JSON.stringify({ error: 'Failed to update ticket in Airtable' }) };
     }
 
-    // ----- SendGrid: notify requester of status change -----
-    const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+    // ----- SendGrid -----
+    const API = process.env.SENDGRID_API_KEY;
     const FROM_EMAIL = process.env.SENDGRID_FROM || process.env.ADMIN_EMAIL || 'whinebrick@gmail.com';
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL || FROM_EMAIL;
-    if (!SENDGRID_API_KEY) throw new Error('Missing SENDGRID_API_KEY');
-    sgMail.setApiKey(SENDGRID_API_KEY);
+    if (!API) return { statusCode: 500, body: JSON.stringify({ error: 'Missing SENDGRID_API_KEY' }) };
+    sgMail.setApiKey(API);
 
     const body =
 `Hello ${ticketFields['Requester Name']},
@@ -70,6 +68,6 @@ Strauss America Analytics Team`;
     return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Ticket updated successfully' }) };
   } catch (error) {
     console.error('update-ticket error:', error.response?.body || error);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to update ticket', message: error.message }) };
+    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to send email', message: error.message }) };
   }
 };

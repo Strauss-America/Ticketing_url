@@ -1,6 +1,4 @@
-const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
-const { OAuth2 } = google.auth;
+const sgMail = require('@sendgrid/mail');
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
@@ -13,32 +11,12 @@ exports.handler = async (event, context) => {
   try {
     const { ticketId, newStatus, ticketFields } = JSON.parse(event.body);
     
-    const oauth2Client = new OAuth2(
-      process.env.GMAIL_CLIENT_ID,
-      process.env.GMAIL_CLIENT_SECRET,
-      'https://developers.google.com/oauthplayground'
-    );
-
-    oauth2Client.setCredentials({
-      refresh_token: process.env.GMAIL_REFRESH_TOKEN
-    });
-
-    const accessToken = await oauth2Client.getAccessToken();
-
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: process.env.GMAIL_USER,
-        clientId: process.env.GMAIL_CLIENT_ID,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-        accessToken: accessToken.token
-      }
-    });
+    // Set SendGrid API key
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
     const adminEmail = 'william.hinebrick@strauss.com';
     const fromEmail = 'william.hinebrick@strauss.com';
+    const fromName = 'Strauss Analytics Ticketing';
     const requesterEmail = ticketFields['Requester Email'];
 
     // Prepare email body
@@ -55,10 +33,13 @@ exports.handler = async (event, context) => {
     emailBody += `Thank you,\nStrauss America Analytics Team`;
 
     // Send email to requester
-    await transporter.sendMail({
-      from: `"Strauss Analytics Ticketing" <${fromEmail}>`,
-      replyTo: adminEmail,
+    await sgMail.send({
       to: requesterEmail,
+      from: {
+        email: fromEmail,
+        name: fromName
+      },
+      replyTo: adminEmail,
       subject: `Ticket Update - #${ticketId} - ${newStatus}`,
       text: emailBody
     });

@@ -1,9 +1,8 @@
 {
-  "name": "strauss-ticketing-system",
+  "name": "strauss-ticketing-functions",
   "version": "1.0.0",
-  "description": "Strauss America Data Request Ticketing System",
+  "description": "Netlify functions for Strauss ticketing system",
   "dependencies": {
-    "node-fetch": "^2.6.7",
-    "nodemailer": "^6.9.7"
+    "@sendgrid/mail": "^8.1.0"
   }
 }

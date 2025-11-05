@@ -123,6 +123,8 @@ async function sendUpdateEmail(ticketFields, newStatus, estimatedHours, actualHo
   const requesterName = ticketFields['Requester Name'];
   const requesterEmail = ticketFields['Requester Email'];
   const oldStatus = ticketFields['Status'];
+  const adminEmail = process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com';
+  const fromEmail = process.env.SMTP_USER;
   
   // Determine what changed
   const changes = [];
@@ -162,8 +164,8 @@ Request Type: ${ticketFields['Request Type']}
 
   // Send email to requester
   await transporter.sendMail({
-    from: '"Strauss America Analytics Team",
-    replyTo: process.env.ADMIN_EMAIL || 'william.hinebrick@strauss.com',
+    from: fromEmail,
+    replyTo: adminEmail,
     to: requesterEmail,
     subject: `Ticket Update - #${ticketId} - ${newStatus}`,
     text: emailBody

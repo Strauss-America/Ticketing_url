@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+// NOTE: Node 18 provides built-in fetch, no require needed.
 
 exports.handler = async (event, context) => {
   // Only allow GET requests

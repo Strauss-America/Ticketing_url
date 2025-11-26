@@ -141,8 +141,48 @@ async function sendUpdateEmailNotification(data, ticketFields) {
       subject: `Ticket Update - #${ticketFields['Ticket ID']} - ${data.status}`,
       text: emailBody
     });
-    
+
     console.log(`Update email sent to ${requesterEmail} for ticket ${ticketFields['Ticket ID']}`);
+
+    // Prepare admin email body
+    let adminEmailBody = `Ticket #${ticketFields['Ticket ID']} has been updated:\n\n`;
+    adminEmailBody += `Status: ${data.status}\n`;
+    adminEmailBody += `Requester: ${data.requesterName} (${requesterEmail})\n`;
+    adminEmailBody += `Department: ${ticketFields['Department']}\n`;
+    adminEmailBody += `Request Type: ${ticketFields['Request Type']}\n`;
+    adminEmailBody += `Urgency: ${ticketFields['Urgency']}\n`;
+
+    if (ticketFields['Deadline']) {
+      adminEmailBody += `Deadline: ${ticketFields['Deadline']}\n`;
+    }
+
+    if (data.estimatedHours) {
+      adminEmailBody += `Estimated Hours: ${data.estimatedHours}\n`;
+    }
+
+    if (data.actualHours) {
+      adminEmailBody += `Actual Hours: ${data.actualHours}\n`;
+    }
+
+    adminEmailBody += `\nDescription:\n${ticketFields['Description']}\n\n`;
+
+    if (data.notes) {
+      adminEmailBody += `Admin Notes:\n${data.notes}\n\n`;
+    }
+
+    adminEmailBody += `Updated: ${new Date().toLocaleString()}\n\n`;
+    adminEmailBody += `View ticket at: https://strauss-america-analytics-tickets.netlify.app`;
+
+    // Send email to admin
+    await transporter.sendMail({
+      from: '"Strauss Analytics Ticketing" <' + fromEmail + '>',
+      to: adminEmail,
+      replyTo: requesterEmail,
+      subject: `Ticket Update - #${ticketFields['Ticket ID']} - ${data.status}`,
+      text: adminEmailBody
+    });
+
+    console.log(`Update email sent to admin ${adminEmail} for ticket ${ticketFields['Ticket ID']}`);
   } catch (error) {
     console.error('Error sending update email:', error);
     // Don't throw - we still want the update to succeed even if email fails

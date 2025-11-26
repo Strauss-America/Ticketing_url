@@ -820,12 +820,16 @@
         }
 
         async function updateTicket() {
+            const ticket = allTickets.find(t => t.airtableId === currentTicketId);
+
             const updateData = {
                 airtableId: currentTicketId,
                 status: document.getElementById('modalStatus').value,
                 estimatedHours: parseFloat(document.getElementById('modalEstimatedHours').value) || null,
                 actualHours: parseFloat(document.getElementById('modalActualHours').value) || null,
-                notes: document.getElementById('modalNotes').value
+                notes: document.getElementById('modalNotes').value,
+                requesterEmail: ticket.requesterEmail,
+                requesterName: ticket.requesterName
             };
             
             try {

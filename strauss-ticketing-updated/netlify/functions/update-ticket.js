@@ -198,8 +198,6 @@ async function sendUpdateEmailNotification(data, ticketFields) {
     console.log(`Update email sent to ${requesterEmail} for ticket ${ticketFields['Ticket ID']}`);
 
     // Prepare admin email body (HTML format)
-    const createdDate = ticketFields['Created At'] ? new Date(ticketFields['Created At']).toLocaleString() : 'N/A';
-
     let adminEmailHtml = `
       <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
         <p><strong>Ticket #${ticketFields['Ticket ID']} has been updated:</strong></p>

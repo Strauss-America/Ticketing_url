@@ -130,7 +130,7 @@ https://strauss-america-analytics-tickets.netlify.app`;
         <p><strong>Deadline:</strong> ${data.deadline || 'No deadline specified'}</p>
 
         <p><strong>Description:</strong></p>
-        <p style="white-space: pre-wrap; background: #f7fafc; padding: 10px; border-radius: 5px;">${data.description}</p>
+        <p style="white-space: pre-wrap; background: #f7fafc; padding: 10px; border-radius: 5px;">${data.description.replace(/\r?\n/g, '<br>')}</p>
 
         <p><strong>Created:</strong> ${new Date().toLocaleString()}</p>
 
@@ -188,7 +188,7 @@ Strauss America Analytics Team`;
         </ul>
 
         <p><strong>Description:</strong></p>
-        <p style="white-space: pre-wrap; background: #f7fafc; padding: 10px; border-radius: 5px;">${data.description}</p>
+        <p style="white-space: pre-wrap; background: #f7fafc; padding: 10px; border-radius: 5px;">${data.description.replace(/\r?\n/g, '<br>')}</p>
 
         <p>Our analytics team will review your request and get back to you shortly. You will receive email updates as your ticket status changes.</p>
 

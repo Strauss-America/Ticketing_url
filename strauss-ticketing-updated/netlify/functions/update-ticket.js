@@ -132,7 +132,7 @@ async function sendUpdateEmailNotification(data, ticketFields) {
       requesterEmailHtml += `
         <br>
         <p><strong>Update:</strong></p>
-        <p style="white-space: pre-wrap;">${data.notes}</p>`;
+        <p style="white-space: pre-wrap;">${data.notes.replace(/\r?\n/g, '<br>')}</p>`;
     }
 
     requesterEmailHtml += `
@@ -145,7 +145,7 @@ async function sendUpdateEmailNotification(data, ticketFields) {
           <strong>Created:</strong> ${createdDate}</p>
 
           <p><strong>Description:</strong></p>
-          <p style="white-space: pre-wrap;">${ticketFields['Description']}</p>
+          <p style="white-space: pre-wrap;">${ticketFields['Description'].replace(/\r?\n/g, '<br>')}</p>
         </div>
 
         <br>
@@ -224,7 +224,7 @@ async function sendUpdateEmailNotification(data, ticketFields) {
       adminEmailHtml += `
         <br>
         <p><strong>Update:</strong></p>
-        <p style="white-space: pre-wrap;">${data.notes}</p>`;
+        <p style="white-space: pre-wrap;">${data.notes.replace(/\r?\n/g, '<br>')}</p>`;
     }
 
     adminEmailHtml += `
@@ -237,7 +237,7 @@ async function sendUpdateEmailNotification(data, ticketFields) {
           <strong>Created:</strong> ${createdDate}</p>
 
           <p><strong>Description:</strong></p>
-          <p style="white-space: pre-wrap;">${ticketFields['Description']}</p>
+          <p style="white-space: pre-wrap;">${ticketFields['Description'].replace(/\r?\n/g, '<br>')}</p>
         </div>
 
         <br>

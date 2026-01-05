@@ -118,12 +118,34 @@ Created: ${new Date().toLocaleString()}
 Please log in to the admin dashboard to view and manage this ticket:
 https://strauss-america-analytics-tickets.netlify.app`;
 
+    const adminEmailHtml = `
+      <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <p><strong>A new data request ticket has been submitted:</strong></p>
+
+        <p><strong>Ticket #:</strong> ${ticketId}</p>
+        <p><strong>Requester:</strong> ${data.requesterName} (${data.requesterEmail})</p>
+        <p><strong>Department:</strong> ${data.department}</p>
+        <p><strong>Request Type:</strong> ${data.requestType}</p>
+        <p><strong>Urgency:</strong> ${data.urgency}</p>
+        <p><strong>Deadline:</strong> ${data.deadline || 'No deadline specified'}</p>
+
+        <p><strong>Description:</strong></p>
+        <p style="white-space: pre-wrap; background: #f7fafc; padding: 10px; border-radius: 5px;">${data.description}</p>
+
+        <p><strong>Created:</strong> ${new Date().toLocaleString()}</p>
+
+        <p>Please log in to the admin dashboard to view and manage this ticket:<br>
+        <a href="https://strauss-america-analytics-tickets.netlify.app">https://strauss-america-analytics-tickets.netlify.app</a></p>
+      </div>
+    `;
+
     await transporter.sendMail({
       from: '"Strauss Analytics Ticketing" <' + fromEmail + '>',
       to: adminEmail,
       replyTo: requesterEmail,
       subject: `New Data Request - Ticket #${ticketId}`,
-      text: adminEmailBody
+      text: adminEmailBody,
+      html: adminEmailHtml
     });
 
     // Confirmation email to requester
@@ -149,11 +171,39 @@ If you have any questions, please reply to this email.
 Thank you,
 Strauss America Analytics Team`;
 
+    const requesterEmailHtml = `
+      <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <p>Dear ${data.requesterName},</p>
+
+        <p>Thank you for submitting your data request. Your ticket has been received and assigned the following number:</p>
+
+        <p><strong>Ticket #: ${ticketId}</strong></p>
+
+        <p><strong>Request Summary:</strong></p>
+        <ul>
+          <li><strong>Department:</strong> ${data.department}</li>
+          <li><strong>Request Type:</strong> ${data.requestType}</li>
+          <li><strong>Urgency:</strong> ${data.urgency}</li>
+          <li><strong>Deadline:</strong> ${data.deadline || 'No deadline specified'}</li>
+        </ul>
+
+        <p><strong>Description:</strong></p>
+        <p style="white-space: pre-wrap; background: #f7fafc; padding: 10px; border-radius: 5px;">${data.description}</p>
+
+        <p>Our analytics team will review your request and get back to you shortly. You will receive email updates as your ticket status changes.</p>
+
+        <p>If you have any questions, please reply to this email.</p>
+
+        <p>Thank you,<br>Strauss America Analytics Team</p>
+      </div>
+    `;
+
     await transporter.sendMail({
       from: '"Strauss Analytics Ticketing" <' + fromEmail + '>',
       to: requesterEmail,
       subject: `Ticket Confirmation - #${ticketId}`,
-      text: requesterEmailBody
+      text: requesterEmailBody,
+      html: requesterEmailHtml
     });
 
     console.log('Email notifications sent successfully');
